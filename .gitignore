@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.env
+
+# macOS
+.DS_Store
+
+# Streamlit cache
+.streamlit/
+
+git add .
+git commit -m "Initial commit: Infinity Lash 3D dashboard"
+
+git remote add origin https://github.com/TON_USER/social-campaign.git
+git branch -M main
+git push -u origin main
+
+git add .
+git commit -m "Initial commit: Infinity Lash 3D dashboard"
+
