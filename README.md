@@ -486,3 +486,4 @@ def text_insights_en(df: pd.DataFrame) -> str:
     return "\n\n".join(lines)
 
 st.markdown(text_insights_en(fdf))
+
