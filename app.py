@@ -1,4 +1,4 @@
-# app.py — centered filters (channels + cities), 2×2 charts, keep "best hour by city", English narrative
+# app.py — no-scroll gallery, centered filters, best hour by city, English narrative
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -33,19 +33,19 @@ def ensure_metrics(df_: pd.DataFrame) -> pd.DataFrame:
     if miss:
         st.error(f"Missing required columns: {miss}")
         st.stop()
-
     if not pd.api.types.is_datetime64_any_dtype(df_["Date"]):
         df_["Date"] = pd.to_datetime(df_["Date"], errors="coerce")
 
+    # Derived metrics
     df_["CTR (%)"] = np.where(df_["Impressions"]>0, df_["Clicks"]/df_["Impressions"]*100, np.nan)
     df_["CPC (€)"] = np.where(df_["Clicks"]>0, df_["Spend (€)"]/df_["Clicks"], np.nan)
     df_["CPM (€)"] = np.where(df_["Impressions"]>0, df_["Spend (€)"]/df_["Impressions"]*1000, np.nan)
 
-    # ignore legacy cols if present
+    # Drop legacy/unused cols if present
     DROP_COLS = ["Creative","Influencer","Likes","Shares","Saves","Comments"]
     df_ = df_.drop(columns=[c for c in DROP_COLS if c in df_.columns], errors="ignore")
 
-    # optional hour
+    # Optional hour
     if "Hour" in df_.columns:
         df_["Hour"] = pd.to_numeric(df_["Hour"], errors="coerce").clip(0, 23).astype("Int64")
 
@@ -55,7 +55,7 @@ def weighted_ctr(d: pd.DataFrame) -> float:
     imps, clicks = d["Impressions"].sum(), d["Clicks"].sum()
     return float(clicks / imps * 100) if imps > 0 else np.nan
 
-def fmt_int(x):
+def fmt_int(x): 
     try: return f"{int(x):,}"
     except: return "0"
 
@@ -72,43 +72,49 @@ st.markdown("""
 /* HERO */
 .hero {
   background: linear-gradient(180deg, #b9e7fd 0%, #3c8bb4 100%);
-  color:#0a2b3a; padding:28px 32px 22px 32px;
-  border-radius:0 0 24px 24px; box-shadow: 0 8px 28px rgba(0,0,0,0.10);
+  color:#0a2b3a; padding:24px 28px 18px 28px;
+  border-radius:0 0 20px 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 .hero .header { display:grid; grid-template-columns:140px 1fr 140px; align-items:center; gap:16px; }
-.hero h1 { margin:0; text-align:center; font-size:2.4rem; font-weight:900; letter-spacing:.2px; }
+.hero h1 { margin:0; text-align:center; font-size:2.2rem; font-weight:900; letter-spacing:.2px; }
 .hero .logo { width:100%; max-height:80px; object-fit:contain; }
-.pills { display:flex; gap:12px; flex-direction:column; align-items:center; margin-top:10px; }
+.pills { display:flex; gap:10px; flex-direction:column; align-items:center; margin-top:8px; }
 .pill { background: rgba(255,255,255,0.65); backdrop-filter: blur(6px);
-  border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:10px 14px; max-width:1100px;
-  font-size:1.02rem; line-height:1.5; text-align:center; }
-.twocols { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
-.block { background: rgba(255,255,255,0.85); border:1px solid rgba(0,0,0,.08);
-  border-radius:16px; padding:16px 18px; }
-.block h3 { margin:0 0 10px 0; font-size:1.1rem; font-weight:800; }
-.image-block { display:flex; align-items:center; justify-content:center; min-height:280px; }
-.image-block img { width:100%; max-width:520px; height:auto; border-radius:14px;
-  box-shadow: 0 10px 28px rgba(0,0,0,.18); border:1px solid rgba(0,0,0,.06); object-fit:cover; }
+  border:1px solid rgba(0,0,0,.06); border-radius:14px; padding:8px 12px; max-width:1100px;
+  font-size:1.0rem; line-height:1.5; text-align:center; }
+.twocols { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px; }
+.block { background: rgba(255,255,255,0.9); border:1px solid rgba(0,0,0,.06);
+  border-radius:14px; padding:14px 16px; }
+.block h3 { margin:0 0 8px 0; font-size:1.05rem; font-weight:800; }
+.image-block { display:flex; align-items:center; justify-content:center; min-height:240px; }
+.image-block img { width:100%; max-width:480px; height:auto; border-radius:12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15); border:1px solid rgba(0,0,0,.06); object-fit:cover; }
 
-/* KPIs */
-.kpis-center {
-  display:flex; align-items:center; justify-content:center; gap:36px;
-  margin: 18px auto 8px auto; flex-wrap:wrap;
-}
-.kpi-card { text-align:center; min-width:180px; }
-.kpi-value { font-size:2.2rem; font-weight:900; line-height:1.0; }
-.kpi-label { font-size:0.95rem; opacity:0.8; margin-top:6px; }
-
-/* Filters */
+/* Filters (centered, single row) */
 .filters-row {
-  display:flex; justify-content:center; align-items:center; gap:18px;
+  display:flex; justify-content:center; align-items:center; gap:14px;
   background:#f7fbff; border:1px solid rgba(0,0,0,.06); border-radius:12px;
   padding:8px 12px; margin-top:12px;
 }
+.filters-row > div { min-width:260px; }
 
-/* Charts */
-.section-title { font-size:1.35rem; font-weight:900; margin:22px 0 8px 0; }
-.block-chart { background:#fff; border:1px solid rgba(0,0,0,.06); border-radius:14px; padding:10px 12px; }
+/* KPIs */
+.kpis-center {
+  display:flex; align-items:center; justify-content:center; gap:28px;
+  margin: 16px auto 6px auto; flex-wrap:wrap;
+}
+.kpi-card { text-align:center; min-width:180px; }
+.kpi-value { font-size:2.0rem; font-weight:900; line-height:1.0; }
+.kpi-label { font-size:0.95rem; opacity:0.8; margin-top:4px; }
+
+/* Charts container */
+.section-title { font-size:1.25rem; font-weight:900; margin:18px 0 6px 0; }
+.block-chart { background:#fff; border:1px solid rgba(0,0,0,.06); border-radius:12px; padding:8px 10px; }
+
+/* Gallery header */
+.gallery-head { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px; }
+.gallery-title { text-align:center; font-weight:800; font-size:1.05rem; }
+.gallery-dots { text-align:center; letter-spacing:2px; opacity:.7; margin-top:2px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -175,28 +181,26 @@ else:
 df = ensure_metrics(df)
 
 # =========================
-# FILTERS — centered, one line (Channels & Cities only)
+# FILTERS — centered, single row (Channels & Cities only)
 # =========================
 channels = sorted(df["Channel"].dropna().unique())
 cities = sorted(df["City"].dropna().unique())
 
-# build two widgets side by side but centered
-c_pad1, c_ch, c_ci, c_pad2 = st.columns([1, 3, 3, 1])
-with c_ch:
+st.markdown('<div class="filters-row">', unsafe_allow_html=True)
+fcol1, fcol2 = st.columns(2)
+with fcol1:
     sel_channels = st.multiselect("Channels", channels, default=channels)
-with c_ci:
+with fcol2:
     sel_cities = st.multiselect("Cities", cities, default=cities)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# fixed aggregation (no UI): Daily + 7-day rolling (smooth reading)
-granularity = "Daily"
-smooth = True
-window = 7
+# Fixed aggregation for readability
+granularity = "Daily"   # day-level
+smooth = True           # rolling smoothing
+window = 7              # 7-day rolling
 
-# apply filters
-mask = (
-    df["Channel"].isin(sel_channels) &
-    df["City"].isin(sel_cities)
-)
+# Apply filters
+mask = (df["Channel"].isin(sel_channels) & df["City"].isin(sel_cities))
 fdf = df.loc[mask].copy()
 
 # =========================
@@ -217,9 +221,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================
-# HELPERS (time series)
+# HELPERS (aggregation & axes)
 # =========================
 def aggregate(df_in: pd.DataFrame, how: str) -> pd.DataFrame:
+    """Aggregate per Channel × Date and resample to a continuous timeline. Rolling smoothing optional."""
     if df_in.empty: return df_in
     out = []
     freq = {"Daily": "D", "Weekly": "W-MON", "Monthly": "MS"}[how]
@@ -238,10 +243,10 @@ def aggregate(df_in: pd.DataFrame, how: str) -> pd.DataFrame:
             agg_[col] = agg_.groupby("Channel", group_keys=False)[col].apply(lambda s: s.rolling(window, min_periods=1).mean())
     return agg_
 
-def tune_time_axes(fig, yfmt=",.0f", height=520, ytitle="", y0=True, y_max=None, x_dtick="M1", x_fmt="%b %Y"):
+def tune_time_axes(fig, yfmt=",.0f", height=440, ytitle="", y0=True, y_max=None, x_dtick="M1", x_fmt="%b %Y"):
     fig.update_traces(mode="lines", line=dict(width=3))
     fig.update_layout(template="plotly_white", height=height,
-                      margin=dict(l=16, r=16, t=70, b=16),
+                      margin=dict(l=12, r=12, t=56, b=8),
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
                       hovermode=False, yaxis_title=ytitle)
     fig.update_yaxes(tickformat=yfmt, showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.10)",
@@ -264,107 +269,56 @@ def choose_dtick_and_fmt(d1, d2, gran):
         return "M1", "%b %Y"
     return "M1", "%b %Y"
 
-agg = aggregate(fdf, granularity)
-x_dtick, x_fmt = choose_dtick_and_fmt(fdf["Date"].min(), fdf["Date"].max(), granularity)
-
 # =========================
-# TIME SERIES — tabs (click to switch)
+# GRAPH GALLERY — no-scroll (arrow navigation)
 # =========================
-st.markdown('<div class="section-title">📈 Performance Over Time</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📈 Key Charts</div>', unsafe_allow_html=True)
 
-# (re)compute aggregation + ticks in case filters changed above
-agg = aggregate(fdf, granularity)
-x_dtick, x_fmt = choose_dtick_and_fmt(fdf["Date"].min(), fdf["Date"].max(), granularity)
+# 1) Aggregate & ticks
+agg = aggregate(fdf, "Daily")
+x_dtick, x_fmt = choose_dtick_and_fmt(fdf["Date"].min(), fdf["Date"].max(), "Daily")
 
-tab_imp, tab_clk, tab_ctr, tab_cpc = st.tabs(["Impressions","Clicks","CTR (%)","CPC (€)"])
+# 2) Build figures (same height)
+GALLERY_HEIGHT = 420
 
-with tab_imp:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
-    y_max = float(agg["Impressions"].max() * 1.10) if not agg.empty else None
-    fig = px.line(agg, x="Date", y="Impressions", color="Channel",
-                  title=f"Impressions by Channel ({granularity}{' + rolling' if smooth else ''})")
-    st.plotly_chart(
-        tune_time_axes(fig, ",.0f", 520, "Impressions", True, y_max, x_dtick, x_fmt),
-        use_container_width=True, config={"staticPlot": True, "displaylogo": False}
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
+def make_time_fig(y, yfmt, ytitle):
+    fig = px.line(agg, x="Date", y=y, color="Channel", title=None)
+    fig.update_layout(title=dict(text=ytitle, x=0.01, y=0.98, xanchor="left", font=dict(size=16)))
+    return tune_time_axes(fig, yfmt=yfmt, height=GALLERY_HEIGHT, ytitle=ytitle,
+                          y0=True,
+                          y_max=float(agg[y].max()*1.12) if not agg.empty else None,
+                          x_dtick=x_dtick, x_fmt=x_fmt)
 
-with tab_clk:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
-    y_max = float(agg["Clicks"].max() * 1.10) if not agg.empty else None
-    fig = px.line(agg, x="Date", y="Clicks", color="Channel",
-                  title=f"Clicks by Channel ({granularity}{' + rolling' if smooth else ''})")
-    st.plotly_chart(
-        tune_time_axes(fig, ",.0f", 520, "Clicks", True, y_max, x_dtick, x_fmt),
-        use_container_width=True, config={"staticPlot": True, "displaylogo": False}
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with tab_ctr:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
-    y_max = float(agg["CTR (%)"].max() * 1.15) if not agg.empty else None
-    fig = px.line(agg, x="Date", y="CTR (%)", color="Channel",
-                  title=f"CTR (%) by Channel ({granularity}{' + rolling' if smooth else ''})")
-    st.plotly_chart(
-        tune_time_axes(fig, ".2f", 520, "CTR (%)", True, y_max, x_dtick, x_fmt),
-        use_container_width=True, config={"staticPlot": True, "displaylogo": False}
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with tab_cpc:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
-    y_max = float(agg["CPC (€)"].max() * 1.20) if not agg.empty else None
-    fig = px.line(agg, x="Date", y="CPC (€)", color="Channel",
-                  title=f"CPC (€) by Channel ({granularity}{' + rolling' if smooth else ''})")
-    st.plotly_chart(
-        tune_time_axes(fig, ",.2f", 520, "CPC (€)", True, y_max, x_dtick, x_fmt),
-        use_container_width=True, config={"staticPlot": True, "displaylogo": False}
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# =========================
-# CITY COMPARISON
-# =========================
-st.markdown('<div class="section-title">🏙️ City Comparison</div>', unsafe_allow_html=True)
-
-city_ctr = (fdf.groupby("City").apply(weighted_ctr).reset_index(name="CTR (%)").sort_values("CTR (%)", ascending=False))
-
-row1, row2 = st.columns(2)
-with row1:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
+def make_city_ctr_fig():
+    city_ctr = (fdf.groupby("City").apply(weighted_ctr)
+                .reset_index(name="CTR (%)").sort_values("CTR (%)", ascending=False))
     fig = px.bar(city_ctr, x="City", y="CTR (%)",
-                 text=city_ctr["CTR (%)"].map(lambda v: f"{v:.2f}%"),
-                 title="CTR (%) by City (weighted)")
-    fig.update_traces(textposition="outside")
-    fig.update_layout(template="plotly_white", height=420, margin=dict(l=16,r=16,t=70,b=16),
+                 text=city_ctr["CTR (%)"].map(lambda v: f"{v:.2f}%"), title=None)
+    fig.update_traces(textposition="outside", cliponaxis=False)
+    fig.update_layout(template="plotly_white", height=GALLERY_HEIGHT,
+                      margin=dict(l=12, r=12, t=56, b=8),
+                      title=dict(text="CTR (%) by City (weighted)", x=0.01, y=0.98, xanchor="left", font=dict(size=16)),
                       hovermode=False, yaxis_title="CTR (%)")
     fig.update_yaxes(tickformat=".2f",
                      range=[0, float(city_ctr["CTR (%)"].max()*1.2) if not city_ctr.empty else None],
                      showgrid=True, gridcolor="rgba(0,0,0,0.10)")
-    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True, "displaylogo": False})
-    st.markdown('</div>', unsafe_allow_html=True)
+    return fig
 
-with row2:
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
-    city_channel = fdf.groupby(["City","Channel"], as_index=False)[["Clicks"]].sum()
-    fig = px.bar(city_channel, x="City", y="Clicks", color="Channel", barmode="stack",
-                 title="Clicks Distribution by City & Channel")
-    fig.update_layout(template="plotly_white", height=420, margin=dict(l=16,r=16,t=70,b=16),
+def make_city_clicks_fig():
+    city_channel = fdf.groupby(["City", "Channel"], as_index=False)[["Clicks"]].sum()
+    fig = px.bar(city_channel, x="City", y="Clicks", color="Channel", barmode="stack", title=None)
+    fig.update_layout(template="plotly_white", height=GALLERY_HEIGHT,
+                      margin=dict(l=12, r=12, t=56, b=8),
+                      title=dict(text="Clicks by City & Channel", x=0.01, y=0.98, xanchor="left", font=dict(size=16)),
                       hovermode=False, yaxis_title="Clicks")
     fig.update_yaxes(tickformat=",.0f",
                      range=[0, float(city_channel["Clicks"].max()*1.15) if not city_channel.empty else None],
                      showgrid=True, gridcolor="rgba(0,0,0,0.10)")
-    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True, "displaylogo": False})
-    st.markdown('</div>', unsafe_allow_html=True)
+    return fig
 
-st.divider()
-
-# =========================
-# BEST HOUR BY CITY (bar only, no heatmap)
-# =========================
-st.markdown('<div class="section-title">⏰ Best Hour by City</div>', unsafe_allow_html=True)
-if "Hour" in fdf.columns and not fdf.dropna(subset=["Hour"]).empty:
+def make_best_hour_by_city_fig():
+    if "Hour" not in fdf.columns or fdf.dropna(subset=["Hour"]).empty:
+        return None
     fdf_h = fdf.dropna(subset=["Hour"]).copy()
     fdf_h["Hour"] = fdf_h["Hour"].astype(int)
 
@@ -376,27 +330,63 @@ if "Hour" in fdf.columns and not fdf.dropna(subset=["Hour"]).empty:
     best_hour = (city_hour_ctr.sort_values(["City","CTR (%)"], ascending=[True,False])
                  .groupby("City").head(1).sort_values("CTR (%)", ascending=False))
 
-    st.markdown('<div class="block-chart">', unsafe_allow_html=True)
     fig = px.bar(
         best_hour, x="City", y="CTR (%)",
         text=best_hour.apply(lambda r: f"{int(r['Hour']):02d}:00", axis=1),
-        title="Best Hour by City (highest CTR)"
+        title=None
     )
-    fig.update_traces(textposition="outside", showlegend=False)
-    fig.update_layout(template="plotly_white", height=420, margin=dict(l=16,r=16,t=70,b=16),
+    fig.update_traces(textposition="outside", showlegend=False, cliponaxis=False)
+    fig.update_layout(template="plotly_white", height=GALLERY_HEIGHT,
+                      margin=dict(l=12, r=12, t=56, b=8),
+                      title=dict(text="Best Hour by City (highest CTR)", x=0.01, y=0.98, xanchor="left", font=dict(size=16)),
                       hovermode=False, yaxis_title="CTR (%)")
     fig.update_yaxes(tickformat=".2f",
                      range=[0, float(best_hour["CTR (%)"].max()*1.2) if not best_hour.empty else None],
                      showgrid=True, gridcolor="rgba(0,0,0,0.10)")
-    st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True, "displaylogo": False})
-    st.markdown('</div>', unsafe_allow_html=True)
-else:
-    st.info("Add an `Hour` column (0–23) in your dataset to unlock the best-hour insight.")
+    return fig
+
+gallery = [
+    ("Impressions by Channel (Daily + 7-day rolling)", make_time_fig("Impressions", ",.0f", "Impressions")),
+    ("Clicks by Channel (Daily + 7-day rolling)",      make_time_fig("Clicks", ",.0f", "Clicks")),
+    ("CTR (%) by Channel (Daily + 7-day rolling)",     make_time_fig("CTR (%)", ".2f", "CTR (%)")),
+    ("CPC (€) by Channel (Daily + 7-day rolling)",     make_time_fig("CPC (€)", ",.2f", "CPC (€)")),
+    ("CTR (%) by City (weighted)",                     make_city_ctr_fig()),
+    ("Clicks by City & Channel",                       make_city_clicks_fig()),
+]
+best_hour_fig = make_best_hour_by_city_fig()
+if best_hour_fig is not None:
+    gallery.append(("Best Hour by City (highest CTR)", best_hour_fig))
+
+# 3) Gallery index + navigation buttons
+if "gallery_idx" not in st.session_state:
+    st.session_state.gallery_idx = 0
+
+def nav(delta):
+    n = len(gallery)
+    st.session_state.gallery_idx = (st.session_state.gallery_idx + delta) % n
+
+# Header with arrows + indicator
+c_prev, c_title, c_next = st.columns([1, 6, 1])
+with c_prev:
+    st.button("◀︎ Prev", on_click=nav, args=(-1,), use_container_width=True)
+with c_next:
+    st.button("Next ▶︎", on_click=nav, args=(+1,), use_container_width=True)
+
+title, fig = gallery[st.session_state.gallery_idx]
+with c_title:
+    st.markdown(f"<div class='gallery-title'>{title}</div>", unsafe_allow_html=True)
+    dots = []
+    for i in range(len(gallery)):
+        dots.append("●" if i == st.session_state.gallery_idx else "○")
+    st.markdown(f"<div class='gallery-dots'>{' '.join(dots)}</div>", unsafe_allow_html=True)
+
+# Single chart (constant height to avoid scroll)
+st.plotly_chart(fig, use_container_width=True, config={"staticPlot": True, "displaylogo": False})
 
 st.divider()
 
 # =========================
-# NARRATIVE — ENGLISH (clean, airy)
+# NARRATIVE — ENGLISH (clean & airy)
 # =========================
 st.subheader("🔎 Insights & Recommendations — Based on current filters")
 
@@ -465,17 +455,15 @@ def text_insights_en(df: pd.DataFrame) -> str:
         lines.append(f"**By channel.** Highest CTR on **{best_ctr['Channel']}** ({pct(best_ctr['CTR (%)'])}); "
                      f"lowest CPC on **{best_cpc['Channel']}** ({eur(best_cpc['CPC (€)'])}); "
                      f"lowest CPM on **{best_cpm['Channel']}** ({eur(best_cpm['CPM (€)'])}).")
-    if top_city_ctr is not None or best_city_cpc is not None:
-        bits = []
-        if top_city_ctr is not None: bits.append(f"top CTR in **{top_city_ctr['City']}** ({pct(top_city_ctr['CTR (%)'])})")
-        if best_city_cpc is not None: bits.append(f"lowest CPC in **{best_city_cpc['City']}** ({eur(best_city_cpc['CPC (€)'])})")
-        if bits: lines.append("**By city.** " + " · ".join(bits) + ".")
+    bits = []
+    if top_city_ctr is not None: bits.append(f"top CTR in **{top_city_ctr['City']}** ({pct(top_city_ctr['CTR (%)'])})")
+    if best_city_cpc is not None: bits.append(f"lowest CPC in **{best_city_cpc['City']}** ({eur(best_city_cpc['CPC (€)'])})")
+    if bits: lines.append("**By city.** " + " · ".join(bits) + ".")
     if not winners.empty:
         bullets = [f"- **{r.City}** → best channel: **{r.Channel}** ({pct(r['CTR (%)'])})" for _, r in winners.iterrows()]
         lines.append("**City × channel winners:**\n" + "\n".join(bullets))
     if hour_lines:
         lines.append("**Best hours to schedule:**\n" + "\n".join(hour_lines))
-    # Recommendations
     tips = []
     if best_ctr is not None and best_cpc is not None:
         tips.append(f"Shift incremental budget to **{best_ctr['Channel']}** (highest CTR) and **{best_cpc['Channel']}** (lowest CPC) in winning cities.")
